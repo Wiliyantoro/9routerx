@@ -2,6 +2,12 @@
 package providers
 
 // ProviderAliasMap maps short aliases to canonical provider IDs.
+//
+// Three aliases resolve to weblogin lanes that are runtime-only and not
+// listed in the static registry (so a registry-vs-alias diff shows them as
+// dangling, by design): "cweb" → chatgpt-web, "uc" → uc-web, and
+// "veo-free" → veoaifree-web. ResolveAlias returns unknown aliases unchanged,
+// and the web executor for each of these targets ships in the weblogin layer.
 var ProviderAliasMap = map[string]string{
 	"b-ai":           "bai",
 	"agnes-ai":       "agnes",
