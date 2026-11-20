@@ -82,7 +82,6 @@ func SetupRoutes(r interface {
 	r.Get("/api/models/*", chatH.HandleModelLookup)
 	r.Get("/api/models/catalog-sync", chatH.HandleCatalogSyncStatus)
 	r.Post("/api/models/catalog-sync", chatH.HandleCatalogSyncTrigger)
-	r.Get("/api/models", chatH.HandleModels)
 	r.Post("/chat/completions", chatH.HandleChatCompletions)
 	r.Post("/messages", chatH.HandleMessages)
 	r.Post("/messages/count_tokens", chatH.HandleCountTokens)
@@ -102,11 +101,9 @@ func SetupRoutes(r interface {
 	r.Post("/audio/music", mediaH.HandleAudioMusic)
 	r.Post("/v1/audio/music", mediaH.HandleAudioMusic)
 	r.Get("/audio/voices", mediaH.HandleAudioVoices)
-	r.Get("/api/media-providers/tts/voices", mediaH.HandleAudioVoices)
-	r.Get("/api/media-providers/tts/inworld/voices", mediaH.HandleAudioVoices)
-	r.Get("/api/media-providers/tts/minimax/voices", mediaH.HandleAudioVoices)
-	r.Get("/api/media-providers/tts/deepgram/voices", mediaH.HandleAudioVoices)
-	r.Get("/api/media-providers/tts/elevenlabs/voices", mediaH.HandleAudioVoices)
+	// The /api/media-providers/tts/* voices aliases are registered in
+	// SetupDashboardRoutes; a copy here would be shadowed by that later
+	// registration (chi replaces the endpoint on a duplicate pattern).
 	r.Post("/audio/transcriptions", mediaH.HandleAudioTranscriptions)
 	r.Post("/audio/sound-generation", mediaH.HandleAudioSoundGeneration)
 	r.Post("/v1/audio/sound-generation", mediaH.HandleAudioSoundGeneration)
@@ -131,25 +128,11 @@ func SetupRoutes(r interface {
 	// here too would win the match under RequireApiKey and keep it unreachable
 	// from the session cookie the SPA actually sends.
 
-	// Usage Real-time SSE Stream & Stats Domain (dashboard topology animation + recent requests)
-	r.Get("/usage/stream", HandleUsageStream(repo))
-	r.Get("/api/usage/stream", HandleUsageStream(repo))
-	r.Get("/usage/stats", HandleUsageStats(repo))
-	r.Get("/api/usage/stats", HandleUsageStats(repo))
+	// Usage Real-time SSE Stream & Stats Domain: the /usage/* and /api/usage/*
+	// routes live in SetupDashboardRoutes — a copy here would be shadowed by
+	// that later registration (chi replaces the endpoint on a duplicate
+	// pattern), except /usage/chart which exists nowhere else.
 	r.Get("/usage/chart", HandleUsageChart(repo))
-	r.Get("/api/usage/chart", HandleUsageChart(repo))
-	r.Get("/api/usage/dashboard", HandleUsageDashboard(repo))
-	r.Get("/api/usage/request-details", HandleRequestDetails(repo))
-	r.Get("/api/usage/export", HandleUsageExport(repo))
-	r.Get("/api/usage/request-details/{id}", HandleRequestDetail(repo))
-	r.Get("/api/usage/providers", dashH.HandleGetUsageProviders)
-	r.Get("/api/usage/provider-error-rates", dashH.HandleGetProviderErrorRates)
-	r.Get("/api/usage/{connectionId}", dashH.HandleGetConnectionUsage)
-	r.Get("/api/usage/{connectionId}/reset-credits", dashH.HandleListCodexResetCredits)
-	r.Post("/api/usage/{connectionId}/reset-credits/consume", dashH.HandleConsumeCodexResetCredit)
-	// GLM Reset Cards (Z.ai international)
-	r.Get("/api/usage/{connectionId}/glm-reset-cards", dashH.HandleGetGLMResetCards)
-	r.Post("/api/usage/{connectionId}/glm-reset-cards", dashH.HandleRedeemGLMResetCard)
 
 	// Debug Tracing Domain (p50/p95 latency per provider+model)
 	r.Get("/debug/traces", HandleDebugTraces)
@@ -738,7 +721,9 @@ func SetupServerRouter(r chi.Router, repo *db.Repo, ts *TokenSaverConfig) *chat.
 	r.Post("/api/auth/login", dashH.HandleAuthLogin)
 	r.Post("/api/auth/logout", dashH.HandleAuthLogout)
 	r.Get("/api/settings/require-login", dashH.HandleRequireLogin)
-	r.Get("/api/tunnel/status", dashH.HandleTunnelStatus)
+	// /api/tunnel/status is registered in SetupDashboardRoutes; a copy here
+	// would be shadowed by that later registration (chi replaces the endpoint
+	// on a duplicate pattern).
 
 	// A2A (Agent-to-Agent protocol, FASE 10.2) — public paths, NOT inside the
 	// RequireApiKey group: discovery must work before a caller knows which
