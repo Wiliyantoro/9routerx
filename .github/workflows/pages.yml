@@ -195,6 +195,16 @@ jobs:
             echo "::error::$repo_imgs local images but $sized carry width and height; the rest reflow the text as they load"
             exit 1
           }
+          # readme.html embeds the README body, whose headings/lists/links carry
+          # the svg.ico markers injected by icons.go. Without the icon sizing
+          # rules on that page the icons render at the browser's 300x150 SVG
+          # default with a solid black fill — the "giant black circle" bug. The
+          # landing and wiki chromes carry their own copies; this page needs its
+          # own, and this assert keeps a future template edit from dropping it.
+          grep -q '\.prose svg\.ico' _site/readme.html || {
+            echo "::error::readme.html lost the .prose svg.ico icon rules; injected icons would render as giant black shapes"
+            exit 1
+          }
           # Every wiki page must carry the same four sidebar section headings.
           # index.html is the landing and readme.html the standalone README —
           # neither has a wiki sidebar; tg.html is a redirect stub. The count

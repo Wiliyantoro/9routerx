@@ -235,6 +235,58 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
+// The README body renders only on readme.html since the landing split, so the
+// icon sizing CSS must ship with THIS template: without it every svg.ico
+// marker injected by icons.go draws at the browser's 300x150 default with a
+// solid black fill — the "giant black circle above Why 9RouterX?" regression.
+// The homepage and wiki chromes keep their own copies; this pins the readme
+// page's.
+func TestReadmeTemplateIconChrome(t *testing.T) {
+	for _, want := range []string{
+		`.prose svg.ico {`,
+		`fill: none`,
+		`stroke: currentColor`,
+		`width: 1em`,
+		`.prose h2 svg.ico,`,
+		`.prose ul.md-pros,`,
+		`.prose ul.md-pros svg.ico {`,
+		`color: var(--ok)`,
+	} {
+		if !strings.Contains(readmeTemplate, want) {
+			t.Errorf("readmeTemplate is missing the icon rule %q", want)
+		}
+	}
+
+	root := t.TempDir()
+	readme := filepath.Join(root, "README.md")
+	writeFixture(t, readme, "# Title\n\nBody text.\n")
+
+	assets := filepath.Join(root, "site")
+	if err := os.MkdirAll(assets, 0o755); err != nil {
+		t.Fatalf("MkdirAll(site): %v", err)
+	}
+	writeFixture(t, filepath.Join(assets, "style.css"), "body{}")
+	writeFixture(t, filepath.Join(assets, "tg.html"), "<a></a>")
+	writeFixture(t, filepath.Join(assets, "logo-9routerx-128.png"), "logo-bytes")
+	writeFixture(t, filepath.Join(assets, "llms.txt"), "# 9RouterX\n")
+
+	out := filepath.Join(root, "_site")
+	if err := generate(readme, assets, out, "yanstd888/9routerx", heroStats{Version: "9.9.9", Providers: 123, WikiPages: 7}); err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+
+	article := readFile(t, filepath.Join(out, "readme.html"))
+	for _, want := range []string{
+		`.prose svg.ico {`,
+		`stroke: currentColor`,
+		`.prose ul.md-pros svg.ico {`,
+	} {
+		if !strings.Contains(article, want) {
+			t.Errorf("generated readme.html is missing the icon rule %q", want)
+		}
+	}
+}
+
 // A README link to a file that is not in the repository must fail the build
 // rather than publish a 404 image on the project page.
 func TestGenerateFailsOnMissingImage(t *testing.T) {

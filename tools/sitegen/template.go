@@ -1134,6 +1134,46 @@ var readmeTemplate = `<!doctype html>
         text-decoration-thickness: 2px;
         text-underline-offset: 3px;
       }
+      /* Icon sizing for the svg.ico markers injected by icons.go. This page
+         embeds the README body, so it needs the same block the homepage
+         carried before the landing split — without it the icons render at
+         the browser's 300x150 SVG default with a solid black fill (the
+         "giant black circle" bug). */
+      .prose svg.ico {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.15em;
+      }
+      .prose h2 svg.ico,
+      .prose h3 svg.ico {
+        width: 1.15em;
+        height: 1.15em;
+        vertical-align: -0.18em;
+        margin-right: 0.45em;
+      }
+      .prose a svg.ico {
+        vertical-align: -0.12em;
+        margin-right: 0.3em;
+      }
+      .prose li svg.ico {
+        margin-right: 0.4em;
+      }
+      .prose ul.md-pros,
+      .prose ul.md-cons {
+        list-style: none;
+        padding-left: 1.5rem;
+      }
+      .prose ul.md-pros svg.ico {
+        color: var(--ok);
+      }
+      .prose ul.md-cons svg.ico {
+        color: var(--err);
+      }
     </style>
     <script>
       // Apply the stored theme before the first paint — the same snippet the
