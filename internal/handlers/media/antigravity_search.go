@@ -502,9 +502,9 @@ func (h *MediaHandler) tryAntigravitySearchConn(w http.ResponseWriter, r *http.R
 			_ = h.Repo.UnlockConnectionModel(conn.ID, translator.NormalizeAntigravityModel(model))
 		}
 	}
-	log.Info("request", "POST /v1/search", "provider", "antigravity", "model", model, "query", query, "results", len(results), "conn", conn.ID[:min(8, len(conn.ID))], "tokens", tokens)
+	log.Info("request", "POST /v1/search", "provider", "antigravity", "model", model, "query", logQueryPreview(query), "results", len(results), "conn", conn.ID[:min(8, len(conn.ID))], "tokens", tokens)
 	responseTimeMs := time.Since(startTime).Milliseconds()
-	log.Info("usage", "logged", "provider", "antigravity", "model", model, "query", query, "results", len(results), "tokens", tokens)
+	log.Info("usage", "logged", "provider", "antigravity", "model", model, "query", logQueryPreview(query), "results", len(results), "tokens", tokens)
 	searchResponse := SearchResponse{
 		Provider: "antigravity",
 		Query:    query,
@@ -529,4 +529,15 @@ func (h *MediaHandler) tryAntigravitySearchConn(w http.ResponseWriter, r *http.R
 
 	handlerutil.WriteJSON(w, http.StatusOK, searchResponse)
 	return nil
+}
+
+// logQueryPreview keeps a user's search text out of the runlog in full: only
+// the first ~40 runes are recorded, enough to identify the query without
+// persisting the whole prompt.
+func logQueryPreview(query string) string {
+	runes := []rune(query)
+	if len(runes) <= 40 {
+		return query
+	}
+	return string(runes[:40]) + "…"
 }
