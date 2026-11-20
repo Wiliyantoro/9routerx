@@ -100,7 +100,9 @@ func (m *Manager) CreateBackup(ctx context.Context, jsonExporter func(context.Co
 			LastStatus:   "error",
 			LastError:    err.Error(),
 		}
-		_ = m.repo.SetAutoBackupStatus(ctx, status)
+		if stErr := m.repo.SetAutoBackupStatus(ctx, status); stErr != nil {
+			log.Warn("backup", "write auto-backup status failed", "error", stErr)
+		}
 		return nil, err
 	}
 
@@ -134,7 +136,9 @@ func (m *Manager) CreateBackup(ctx context.Context, jsonExporter func(context.Co
 		LastStatus:      "success",
 		LastError:       "",
 	}
-	_ = m.repo.SetAutoBackupStatus(ctx, status)
+	if stErr := m.repo.SetAutoBackupStatus(ctx, status); stErr != nil {
+		log.Warn("backup", "write auto-backup status failed", "error", stErr)
+	}
 
 	result := &BackupResult{
 		SQLitePath: sqliteFile,

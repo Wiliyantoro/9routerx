@@ -87,7 +87,9 @@ func (m *Manager) recordRemote(ctx context.Context, cfg db.AutoBackupConfig, sta
 	st.LastRemoteAt = m.now().UTC().Format(time.RFC3339)
 	st.LastRemoteStatus = status
 	st.LastRemoteError = errMsg
-	_ = m.repo.SetAutoBackupStatus(ctx, st)
+	if err := m.repo.SetAutoBackupStatus(ctx, st); err != nil {
+		log.Warn("backup", "write auto-backup remote status failed", "error", err)
+	}
 }
 
 // pushTelegram uploads the backup as a document to the configured chat.
