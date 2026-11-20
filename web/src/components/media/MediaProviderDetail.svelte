@@ -375,6 +375,10 @@
   let isTestingExample = $state(false)
   let exampleResponse = $state<string | null>(null)
   let exampleLatency = $state<number | null>(null)
+  // Aborts an in-flight example request when the panel unmounts or a new test
+  // starts, so a closed modal does not leave the fetch running.
+  let exampleAbort: AbortController | null = null
+  $effect(() => () => exampleAbort?.abort())
 
   const ttsVoices = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer']
 
@@ -490,6 +494,10 @@
   }
 
   async function handleTestExample() {
+    exampleAbort?.abort()
+    const abort = new AbortController()
+    exampleAbort = abort
+    const doFetch = (url: string, init: RequestInit = {}) => fetch(url, { ...init, signal: abort.signal })
     isTestingExample = true
     exampleResponse = null
     const start = performance.now()
@@ -504,24 +512,24 @@
         headers['x-provider-connection-id'] = selectedConnId
       }
 
-      let res: Response
+      let res: Response | null = null
       if (kind === 'video') {
         headers['Content-Type'] = 'application/json'
-        res = await fetch('/v1/videos/generations', {
+        res = await doFetch('/v1/videos/generations', {
           method: 'POST',
           headers,
           body: JSON.stringify({ model: qualifiedModel, prompt: exampleInput })
         })
       } else if (kind === 'image') {
         headers['Content-Type'] = 'application/json'
-        res = await fetch('/v1/images/generations', {
+        res = await doFetch('/v1/images/generations', {
           method: 'POST',
           headers,
           body: JSON.stringify({ model: qualifiedModel, prompt: exampleInput, n: 1, size: 'auto', quality: 'auto', background: 'auto', image_detail: 'high', output_format: 'png' })
         })
       } else if (kind === 'tts') {
         headers['Content-Type'] = 'application/json'
-        res = await fetch(`/v1/audio/speech?response_format=${ttsResponseFormat || 'json'}`, {
+        res = await doFetch(`/v1/audio/speech?response_format=${ttsResponseFormat || 'json'}`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -537,21 +545,21 @@
         formData.append('response_format', sttResponseFormat || 'json')
         const dummyBlob = new Blob(['ID3...'], { type: 'audio/mp3' })
         formData.append('file', dummyBlob, exampleInput || 'audio.mp3')
-        res = await fetch('/v1/audio/transcriptions', {
+        res = await doFetch('/v1/audio/transcriptions', {
           method: 'POST',
           headers,
           body: formData
         })
       } else if (kind === 'embedding') {
         headers['Content-Type'] = 'application/json'
-        res = await fetch('/v1/embeddings', {
+        res = await doFetch('/v1/embeddings', {
           method: 'POST',
           headers,
           body: JSON.stringify({ model: qualifiedModel, input: exampleInput })
         })
       } else if (kind === 'systemone') {
         headers['Content-Type'] = 'application/json'
-        res = await fetch('/v1/systemone', {
+        res = await doFetch('/v1/systemone', {
           method: 'POST',
           headers,
           body: JSON.stringify({ model: qualifiedModel, state: exampleInput, questions: { is_urgent: { type: 'noul', instructions: exampleQuestion } } })
@@ -564,7 +572,7 @@
         }
         if (country.trim()) extra.country = country.trim()
         if (language.trim()) extra.language = language.trim()
-        res = await fetch('/v1/search', {
+        res = await doFetch('/v1/search', {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -581,11 +589,16 @@
           format: fetchFormat,
         }
         if (fetchMaxChars > 0) reqObj.max_characters = fetchMaxChars
-        res = await fetch('/v1/web/fetch', {
+        res = await doFetch('/v1/web/fetch', {
           method: 'POST',
           headers,
           body: JSON.stringify(reqObj),
         })
+      }
+
+      if (!res) {
+        exampleResponse = `Error: unsupported media kind: ${kind}`
+        return
       }
 
       exampleLatency = Math.round(performance.now() - start)
@@ -601,7 +614,11 @@
         exampleResponse = txt || `Status: ${res.status} ${res.statusText}`
       }
     } catch (err) {
-      exampleResponse = `Error: ${err instanceof Error ? err.message : String(err)}`
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        exampleResponse = 'Test canceled.'
+      } else {
+        exampleResponse = `Error: ${err instanceof Error ? err.message : String(err)}`
+      }
       exampleLatency = Math.round(performance.now() - start)
     } finally {
       isTestingExample = false
