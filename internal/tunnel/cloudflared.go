@@ -209,16 +209,16 @@ func EnsureCloudflared(ctx context.Context) (string, error) {
 	if strings.HasSuffix(asset, ".tgz") {
 		p, err := downloadAndExtract(ctx, url)
 		if err != nil {
-			log.Error("tunnel", "cloudflared download failed", "url", url, "error", err)
-			return "", err
+			// The caller (tunnel.Manager.Enable) logs the returned error;
+			// logging here too would double-record the same failure.
+			return "", fmt.Errorf("tunnel.EnsureCloudflared: download %s: %w", url, err)
 		}
 		log.Info("tunnel", "cloudflared installed", "path", p)
 		return p, nil
 	}
 	p, err := downloadBinary(ctx, url, BinPath())
 	if err != nil {
-		log.Error("tunnel", "cloudflared download failed", "url", url, "error", err)
-		return "", err
+		return "", fmt.Errorf("tunnel.EnsureCloudflared: download %s: %w", url, err)
 	}
 	log.Info("tunnel", "cloudflared installed", "path", p)
 	return p, nil
@@ -416,8 +416,7 @@ func spawnCloudflared(bin string, opts SpawnOptions) (*SpawnResult, error) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Error("tunnel", "cloudflared failed to start", "bin", bin, "error", err)
-		return nil, fmt.Errorf("tunnel.spawnCloudflared: start: %w", err)
+		return nil, fmt.Errorf("tunnel.spawnCloudflared: start %s: %w", bin, err)
 	}
 	log.Info("tunnel", "cloudflared started", "pid", cmd.Process.Pid, "args", strings.Join(args, " "))
 	if err := SavePID(cmd.Process.Pid); err != nil {
