@@ -35,4 +35,8 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /app/9routerx /usr/local/bin/9routerx
 EXPOSE 20128
+# Probe the public /health endpoint (router.go:651) so orchestrators see a
+# wedged listener; busybox wget ships with alpine, nothing extra to install.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:20128/health || exit 1
 ENTRYPOINT ["9routerx"]

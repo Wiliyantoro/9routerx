@@ -7,6 +7,14 @@ on:
       - "v*"
   workflow_dispatch:
 
+# One release at a time: two overlapping runs (a re-pushed tag while a manual
+# dispatch is still going) would race on the Release assets, the Docker tags
+# and the manifest bot commit. cancel-in-progress: false lets an older run
+# finish its artifacts instead of stranding a half-built release.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: write
   packages: write
