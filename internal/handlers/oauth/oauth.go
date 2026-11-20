@@ -193,7 +193,8 @@ func (h *OAuthHandler) HandleOAuthKiroSocialExchange(w http.ResponseWriter, r *h
 		bytes.NewReader(exchangePayload),
 	)
 	if err != nil {
-		handlerutil.WriteJSONError(w, http.StatusBadGateway, fmt.Sprintf("token exchange failed: %v", err))
+		log.Error("oauth", "kiro social token exchange request failed", "error", err)
+		handlerutil.WriteJSONError(w, http.StatusBadGateway, "token exchange failed")
 		return
 	}
 	defer tokenResp.Body.Close()
