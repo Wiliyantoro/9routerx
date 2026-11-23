@@ -337,6 +337,7 @@ func ForwardQoder(w http.ResponseWriter, req *Request) error {
 				ctxWriter := &ctxWriter{w: rewoundW, ctx: req.Ctx}
 				go func() {
 					defer rewoundW.Close()
+					source := io.MultiReader(bytes.NewReader(peek.consumed), peek.reader)
 					if peekErr != nil {
 						_ = rewoundW.CloseWithError(peekErr)
 						return
