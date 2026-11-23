@@ -1391,6 +1391,9 @@ func promptTokensForRequest(r *http.Request) int {
 		// judge it.
 		return 0
 	}
-	r.Body = io.NopCloser(bytes.NewReader(body))
+	// LimitReader has advanced r.Body past the bytes just read. Reassemble them
+	// so the downstream handler still sees the full body when ContentLength was
+	// unknown (e.g. chunked uploads) and the 4 MiB cap was hit.
+	r.Body = io.NopCloser(io.MultiReader(bytes.NewReader(body), r.Body))
 	return estimatePromptTokens(body)
 }
