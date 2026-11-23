@@ -324,26 +324,21 @@ func ForwardQoder(w http.ResponseWriter, req *Request) error {
 			}
 		}
 
-			if queueInfo == nil {
-				// Not a queue signal: a mid-stream error is marked by the
-				// coalescer and a clean stream just continues. The peek consumed
-				// the head, so hand the already-read bytes back instead of
-				// re-sending — one upstream call per attempt.
-				defer func() { _ = resp.Body.Close() }()
-				rewoundR, rewoundW := io.Pipe()
-				// ctxWriter aborts writes when the client disconnects, so the
-				// rewrite goroutine cannot block forever on an unbuffered pipe
-				// with no reader.
-				ctxWriter := &ctxWriter{w: rewoundW, ctx: req.Ctx}
-				go func() {
-					defer rewoundW.Close()
-					source := io.MultiReader(bytes.NewReader(peek.consumed), peek.reader)
-					if peekErr != nil {
-						_ = rewoundW.CloseWithError(peekErr)
-						return
-					}
-					_ = rewoundW.CloseWithError(qoderSSERewrite(source, ctxWriter, built.QoderKey))
-				}()
+		if queueInfo == nil {
+			// Not a queue signal: a mid-stream error is marked by the
+			// coalescer and a clean stream just continues. The peek consumed
+			// the head, so hand the already-read bytes back instead of
+			// re-sending — one upstream call per attempt.
+			defer func() { _ = resp.Body.Close() }()
+			rewoundR, rewoundW := io.Pipe()
+			go func() {
+				source := io.MultiReader(bytes.NewReader(peek.consumed), peek.reader)
+				if peekErr != nil {
+					_ = rewoundW.CloseWithError(peekErr)
+					return
+				}
+				_ = rewoundW.CloseWithError(qoderSSERewrite(source, rewoundW, built.QoderKey))
+			}()
 			if req.IsStream {
 				return execSSEStream(w, rewoundR, req)
 			}
@@ -749,20 +744,4 @@ func qoderQueueFitsBudget(ctx context.Context, delayMs int, waited time.Duration
 		return true
 	}
 	return time.Now().Add(delay + qoderQueueAttemptReserve).Before(deadline)
-}
-
-// ctxWriter wraps an io.Writer and aborts writes when ctx is done, so an
-// unbuffered pipe writer cannot block forever when the client disconnects.
-type ctxWriter struct {
-	w   io.Writer
-	ctx context.Context
-}
-
-func (cw *ctxWriter) Write(p []byte) (int, error) {
-	select {
-	case <-cw.ctx.Done():
-		return 0, cw.ctx.Err()
-	default:
-		return cw.w.Write(p)
-	}
 }
