@@ -72,7 +72,7 @@ func EnsureTrailingUserTurn(messages []any, intentionalPrefill bool) []any {
 		// Anthropic rejects right next to the placeholder. The full slice
 		// expression keeps the append below from writing into the caller's
 		// backing array.
-		messages = messages[:len(messages)-1:len(messages)-1]
+		messages = messages[: len(messages)-1 : len(messages)-1]
 	}
 	return append(messages, map[string]any{
 		"role":    "user",
